@@ -27,7 +27,7 @@ func New(
 
 	authService := rates.New(log, storage, provider)
 
-	grpcApp := grpcapp.New(log, authService, grpcPort)
+	grpcApp := grpcapp.New(log, authService, *storage, grpcPort)
 
 	return &App{
 		GRPCServer: grpcApp,

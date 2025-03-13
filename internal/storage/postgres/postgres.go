@@ -10,7 +10,7 @@ import (
 )
 
 type Storage struct {
-	db *sql.DB
+	DB *sql.DB
 }
 
 func New(dbURL string) (*Storage, error) {
@@ -19,17 +19,17 @@ func New(dbURL string) (*Storage, error) {
 		return nil, fmt.Errorf("postgres.New: %w", err)
 	}
 
-	return &Storage{db: db}, nil
+	return &Storage{DB: db}, nil
 }
 
 func (s *Storage) Close() error {
-	return s.db.Close()
+	return s.DB.Close()
 }
 
 func (s *Storage) SaveRates(ctx context.Context, rate domain.Rate) error {
 	const query = `INSERT INTO rates (ask, bid, timestamp) VALUES ($1, $2, $3)`
 
-	_, err := s.db.ExecContext(ctx, query, rate.Ask, rate.Bid, rate.Timestamp)
+	_, err := s.DB.ExecContext(ctx, query, rate.Ask, rate.Bid, rate.Timestamp)
 	if err != nil {
 		return fmt.Errorf("postgres.SaveRates: %w", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"usdt-rate-service/internal/storage/postgres"
 
 	rategrpc "usdt-rate-service/internal/grpc/rates"
 
@@ -24,6 +25,7 @@ type App struct {
 func New(
 	log *zap.Logger,
 	rateService rategrpc.RateService,
+	storage postgres.Storage,
 	port string,
 ) *App {
 	loggingOpts := []logging.Option{
@@ -44,7 +46,7 @@ func New(
 		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
 	))
 
-	rategrpc.Register(gRPCServer, rateService)
+	rategrpc.Register(gRPCServer, rateService, log, storage)
 
 	return &App{
 		log:        log,
