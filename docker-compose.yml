@@ -1,0 +1,35 @@
+services:
+  usdt-rate-service:
+    build: .
+    env_file: .env
+    restart: always
+    volumes:
+      - .env:/.env
+    depends_on:
+      - postgres
+    networks:
+        - usdt-rate-network
+    ports:
+        - ${GRPC_PORT}:${GRPC_PORT}
+
+  postgres:
+    image: postgres:latest
+    restart: always
+    container_name: postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - usdt-rate-network
+    ports:
+      - ${DB_PORT}:${DB_PORT}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+networks:
+  usdt-rate-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

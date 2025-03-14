@@ -23,7 +23,7 @@ func main() {
 	var dbHost, dbPort, dbUser, dbPassword, dbName, migrationsPath string
 	var down bool
 
-	flag.StringVar(&dbHost, "db-host", cfg.DB.Host, "database host")
+	flag.StringVar(&dbHost, "db-host", "localhost", "database host")
 	flag.StringVar(&dbPort, "db-port", cfg.DB.Port, "database port")
 	flag.StringVar(&dbUser, "db-user", cfg.DB.User, "database user")
 	flag.StringVar(&dbPassword, "db-password", cfg.DB.Password, "database password")
