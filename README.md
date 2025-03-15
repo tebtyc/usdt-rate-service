@@ -7,7 +7,7 @@
 ### 1.Клонирование репозитория
 
 ```
-git clone https://studentgit.kata.academy/tebtyc/usdt-rate-service.git
+git clone https://github.com/tebtyc/usdt-rate-service.git
 cd usdt-rate-service
 cp .env.example .env
 ```
