@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	"net"
 	"net/http"
 	"usdt-rate-service/internal/storage/postgres"
 	"usdt-rate-service/metrics"
+	"usdt-rate-service/tracing"
 
 	rategrpc "usdt-rate-service/internal/grpc/rates"
 
@@ -26,6 +29,7 @@ type App struct {
 	port             string
 	prometheusServer *http.Server
 	prometheusPort   string
+	traceProvider    *tracesdk.TracerProvider
 }
 
 func New(
@@ -52,7 +56,13 @@ func New(
 		recovery.UnaryServerInterceptor(recoveryOpts...),
 		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
 		metrics.UnaryServerInterceptor(),
+		otelgrpc.UnaryServerInterceptor(),
 	))
+
+	tracerProvider, err := tracing.InitTracer("http://jaeger:14268/api/traces", "usdt-rate-service")
+	if err != nil {
+		log.Error("Failed to initialize tracer provider", zap.Error(err))
+	}
 
 	metrics.InitMetrics()
 
@@ -68,6 +78,7 @@ func New(
 		port:             port,
 		prometheusServer: prometheusServer,
 		prometheusPort:   prometheusPort,
+		traceProvider:    tracerProvider,
 	}
 }
 
@@ -140,6 +151,10 @@ func (a *App) Stop() {
 	a.log.Info("stopping Prometheus metrics server", zap.String("port", a.prometheusPort))
 	if err := a.prometheusServer.Shutdown(context.Background()); err != nil {
 		a.log.Error("failed to shutdown prometheus metrics server", zap.Error(err))
+	}
+
+	if err := a.traceProvider.Shutdown(context.Background()); err != nil {
+		a.log.Error("failed to shutdown trace provider", zap.Error(err))
 	}
 
 	a.log.Info("stopping gRPC server", zap.String("port", a.port))
