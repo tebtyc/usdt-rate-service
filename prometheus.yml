@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'usdt-rate-service'
+    static_configs:
+      - targets: ['usdt-rate-service:8080']

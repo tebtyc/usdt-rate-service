@@ -2,9 +2,13 @@ package grpcapp
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net"
+	"net/http"
 	"usdt-rate-service/internal/storage/postgres"
+	"usdt-rate-service/metrics"
 
 	rategrpc "usdt-rate-service/internal/grpc/rates"
 
@@ -17,9 +21,11 @@ import (
 )
 
 type App struct {
-	log        *zap.Logger
-	gRPCServer *grpc.Server
-	port       string
+	log              *zap.Logger
+	gRPCServer       *grpc.Server
+	port             string
+	prometheusServer *http.Server
+	prometheusPort   string
 }
 
 func New(
@@ -27,6 +33,7 @@ func New(
 	rateService rategrpc.RateService,
 	storage postgres.Storage,
 	port string,
+	prometheusPort string,
 ) *App {
 	loggingOpts := []logging.Option{
 		logging.WithLogOnEvents(
@@ -44,14 +51,23 @@ func New(
 	gRPCServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		recovery.UnaryServerInterceptor(recoveryOpts...),
 		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
+		metrics.UnaryServerInterceptor(),
 	))
+
+	metrics.InitMetrics()
+
+	prometheusServer := &http.Server{
+		Handler: promhttp.Handler(),
+	}
 
 	rategrpc.Register(gRPCServer, rateService, log, storage)
 
 	return &App{
-		log:        log,
-		gRPCServer: gRPCServer,
-		port:       port,
+		log:              log,
+		gRPCServer:       gRPCServer,
+		port:             port,
+		prometheusServer: prometheusServer,
+		prometheusPort:   prometheusPort,
 	}
 }
 
@@ -91,6 +107,7 @@ func (a *App) MustRun() {
 }
 
 func (a *App) Run() error {
+	// gRPC server
 	l, err := net.Listen("tcp", fmt.Sprintf(":%s", a.port))
 	if err != nil {
 		return fmt.Errorf("grpcapp.Run: %w", err)
@@ -98,15 +115,33 @@ func (a *App) Run() error {
 
 	a.log.Info("grpc server started", zap.String("addr", l.Addr().String()))
 
-	if err := a.gRPCServer.Serve(l); err != nil {
-		return fmt.Errorf("grpcapp.Run: %w", err)
-	}
+	go func() {
+		if err := a.gRPCServer.Serve(l); err != nil {
+			a.log.Fatal("grpcapp.Run:", zap.Error(err))
+		}
+	}()
+
+	// Prometheus metrics server
+	a.prometheusServer.Addr = fmt.Sprintf(":%s", a.prometheusPort)
+
+	a.log.Info("prometheus metrics server started", zap.String("addr", a.prometheusServer.Addr))
+
+	go func() {
+		if err := a.prometheusServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			a.log.Fatal("prometheus server error", zap.Error(err))
+		}
+		a.log.Info("prometheus metrics server stopped", zap.String("addr", a.prometheusServer.Addr))
+	}()
 
 	return nil
 }
 
 func (a *App) Stop() {
-	a.log.Info("stopping gRPC server", zap.String("port", a.port))
+	a.log.Info("stopping Prometheus metrics server", zap.String("port", a.prometheusPort))
+	if err := a.prometheusServer.Shutdown(context.Background()); err != nil {
+		a.log.Error("failed to shutdown prometheus metrics server", zap.Error(err))
+	}
 
+	a.log.Info("stopping gRPC server", zap.String("port", a.port))
 	a.gRPCServer.GracefulStop()
 }

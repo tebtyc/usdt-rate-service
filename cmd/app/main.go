@@ -24,7 +24,7 @@ func main() {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 
-	application := app.New(logger, cfg.GRPC.Port, cfg.GetDBURL())
+	application := app.New(logger, cfg.GRPC.Port, cfg.GetDBURL(), cfg.Prometheus.Port)
 
 	go func() {
 		application.GRPCServer.MustRun()

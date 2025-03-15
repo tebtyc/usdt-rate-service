@@ -18,8 +18,13 @@ type GRPC struct {
 }
 
 type Config struct {
-	DB   DB
-	GRPC GRPC
+	DB         DB
+	GRPC       GRPC
+	Prometheus Prometheus
+}
+
+type Prometheus struct {
+	Port string
 }
 
 func LoadConfig() *Config {
@@ -33,6 +38,9 @@ func LoadConfig() *Config {
 		},
 		GRPC: GRPC{
 			Port: os.Getenv("GRPC_PORT"),
+		},
+		Prometheus: Prometheus{
+			Port: os.Getenv("PROMETHEUS_PORT"),
 		},
 	}
 

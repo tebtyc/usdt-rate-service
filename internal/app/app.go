@@ -17,6 +17,7 @@ func New(
 	log *zap.Logger,
 	grpcPort string,
 	dbURL string,
+	prometheusPort string,
 ) *App {
 	storage, err := postgres.New(dbURL)
 	if err != nil {
@@ -27,7 +28,7 @@ func New(
 
 	authService := rates.New(log, storage, provider)
 
-	grpcApp := grpcapp.New(log, authService, *storage, grpcPort)
+	grpcApp := grpcapp.New(log, authService, *storage, grpcPort, prometheusPort)
 
 	return &App{
 		GRPCServer: grpcApp,
